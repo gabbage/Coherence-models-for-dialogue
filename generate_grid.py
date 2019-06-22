@@ -5,6 +5,7 @@ from corpus.Switchboard.Switchboard import Switchboard
 from corpus.Oasis.Oasis import Oasis
 from corpus.Maptask.Maptask import Maptask
 from corpus.AMI.AMI import AMI
+from corpus.DailyDialog.DailyDialog import DailyDialog
 from collections import OrderedDict
 from itertools import groupby
 from operator import itemgetter
@@ -54,11 +55,12 @@ Files generated with spacy 1
 
  '''
 
-all_datasets_path = '../../Datasets/'
-corpora_paths = {'Switchboard': all_datasets_path + 'Switchboard/data/switchboard1-release2/',
+all_datasets_path = './data/'
+corpora_paths = {'Switchboard': all_datasets_path + 'Switchboard/data/',
                  'Oasis': all_datasets_path + 'Oasis',
                  'Maptask': all_datasets_path + 'maptaskv2-1',
-                 'AMI': all_datasets_path + 'ami_public_manual_1.6.2'}
+                 'AMI': all_datasets_path + 'ami_public_manual_1.6.2',
+                 'DailyDialog': all_datasets_path + 'DailyDialog'}
 
 
 def get_corpus(corpus_name):
@@ -71,6 +73,8 @@ def get_corpus(corpus_name):
         corpus_loader = Maptask(corpus_path)
     elif corpus_name=='AMI':
         corpus_loader = AMI(corpus_path)
+    elif corpus_name == 'DailyDialog':
+        corpus_loader = DailyDialog(corpus_path)
     corpus_dct = corpus_loader.load_csv()
     return corpus_dct, corpus_loader
 
@@ -574,8 +578,8 @@ def main(args):
     print('Ex. Turn type: ', type(corpus_dct[list(corpus_dct.keys())[0]][0]))
     print('Ex. Turn 0: ', corpus_dct[list(corpus_dct.keys())[0]][0])
     print('Ex. Turn 0-4: ')
-    for y in corpus_dct[list(corpus_dct.keys())[0]]:
-        print(y)
+    # for y in corpus_dct[list(corpus_dct.keys())[0]]:
+        # print(y)
 
     grid_generator = GridGenerator()
 
@@ -679,7 +683,7 @@ def argparser(parser=None, func=main):
 
     parser.add_argument('outputpath', nargs='?',
                         type=str,
-                        default='data/',
+                        default='./data/',
                         help="output folder path")
 
     parser.add_argument('--verbose', '-v',

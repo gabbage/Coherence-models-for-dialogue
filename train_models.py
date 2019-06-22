@@ -169,8 +169,11 @@ class EntitiesFeatureExtractor(object):
             # # Short example
             # grid_i = pd.DataFrame({i: (grid_i[i][:6]) for ind, i in enumerate(grid_i) if ind < 15})
             # print(grid_i)
-
-            permutations_i = permuted_files[grid_i_name]
+            try:
+                permutations_i = permuted_files[grid_i_name]
+            except KeyError:
+                print("KeyError on ", grid_i_name)
+                continue
             transitions_count = self.get_total_numb_trans_given(grid_i, transition_range)
 
             # The first probs distribution in probs_grid_i is the original one
@@ -395,6 +398,7 @@ class EntitiesFeatureExtractor(object):
 
 
 def get_grids_transitions_data(grids_transitions_dict, experiments_split, data_type, corpus_name):
+    #TODO: check this function for DailyDialog !!!
     if corpus_name=='Oasis':
 
         grids_transitions_data = {grid_x_name:val for grid_x_name, val in iteritems(grids_transitions_dict)
@@ -498,6 +502,10 @@ def run(args):
 
             grids_transitions_test = get_grids_transitions_data(grids_transitions_dict,
                                                                 experiments_split, data_type, corpus)
+            print(data_type,",",len(data_type))
+            if len(grids_transitions_test) == 0:
+                print("no data for type", data_type, " found!")
+                continue
             if task == 'reordering':
                 feature_extractor.featurize_transitions_dct_svmlightformat(grids_transitions_test,
                                                                            out_path + data_filename + '_' + filename)

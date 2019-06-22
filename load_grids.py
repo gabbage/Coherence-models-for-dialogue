@@ -83,6 +83,7 @@ class GridLoader(object):
             assert os.path.exists(data_folder + corpus_name + '/' + split_filename + ".csv")
             print('Using already available train dev test split')
             splits = pd.read_csv(data_folder + corpus_name + '/' + split_filename + ".csv", dtype=str, keep_default_na=False)
+
         except AssertionError:
             print('No training/val/test splits already available')
             try:
