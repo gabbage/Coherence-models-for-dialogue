@@ -6,8 +6,7 @@ import csv
 import re
 from corpus.Corpus import Corpus
 import sys
-reload(sys)
-sys.setdefaultencoding('utf-8')
+# sys.setdefaultencoding('utf-8')
 
 DA_id2desc = {1: "inform",2:"question",3:"directive",4:"commissive"}
 
@@ -35,7 +34,7 @@ class DailyDialog(Corpus):
 
             for line_count, (line_dial, line_act) in enumerate(zip(in_dial, in_act)):
                 csv_dialogue = []
-                line_dial.decode('utf-8')
+                # line_dial.decode('utf-8')
                 seqs = line_dial.split('__eou__')
                 seqs = seqs[:-1]
 
