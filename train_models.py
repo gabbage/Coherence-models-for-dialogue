@@ -398,7 +398,6 @@ class EntitiesFeatureExtractor(object):
 
 
 def get_grids_transitions_data(grids_transitions_dict, experiments_split, data_type, corpus_name):
-    #TODO: check this function for DailyDialog !!!
     if corpus_name=='Oasis':
 
         grids_transitions_data = {grid_x_name:val for grid_x_name, val in iteritems(grids_transitions_dict)

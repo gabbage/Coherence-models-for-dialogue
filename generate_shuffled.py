@@ -29,7 +29,6 @@ class GridShuffler(object):
     def __init__(self, grid_folder=None, grid_loader=None, grid_generator=None):
 
         if grid_loader:
-            print("### loading grids from folder: ", grid_folder)
             self.grid_loader = grid_loader
         else:
             try:
