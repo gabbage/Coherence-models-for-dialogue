@@ -1,6 +1,7 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import dict
+import codecs
 import os
 import csv
 import re
@@ -29,13 +30,14 @@ class DailyDialog(Corpus):
             dial_dir = os.path.join(self.corpus_folder, sset, "dialogues.txt")
             act_dir = os.path.join(self.corpus_folder, sset, "dialogues_act.txt")
 
-            in_dial = open(dial_dir, 'r')
+            in_dial = codecs.open(dial_dir, encoding='utf-8')
+            # in_dial = open(dial_dir, 'r')
             in_act = open(act_dir, 'r')
 
             for line_count, (line_dial, line_act) in enumerate(zip(in_dial, in_act)):
                 csv_dialogue = []
                 # line_dial.decode('utf-8')
-                seqs = line_dial.split('__eou__')
+                seqs = repr(line_dial).split('__eou__')
                 seqs = seqs[:-1]
 
                 acts = line_act.split(' ')
