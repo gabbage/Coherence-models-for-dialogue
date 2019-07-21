@@ -4,6 +4,7 @@ from builtins import dict
 from load_grids import GridLoader
 # from sklearn.feature_extraction.text import CountVectorizer
 from corpus.Switchboard.Switchboard import Switchboard
+from corpus.DailyDialog.DailyDialog import DailyDialog
 from generate_grid import corpora_paths, get_corpus
 from generate_shuffled import GridShuffler
 from itertools import permutations
@@ -64,7 +65,7 @@ class EntityGridLM(object):
 
 class EntitiesFeatureExtractor(object):
 
-    def __init__(self, grid_loader=None, grid_folder=None):
+    def __init__(self, grid_loader=None, grid_folder=None, shuffled_dir=None):
 
         if grid_loader:
             self.grid_loader = grid_loader
@@ -80,6 +81,7 @@ class EntitiesFeatureExtractor(object):
         if not self.grids:
             self.grids, self.grids_params = self.grid_loader.load_data()
         self.vocabulary = self.get_vocabulary()
+        self.shuffled_dir = shuffled_dir
         self.grid_shuffler = GridShuffler(grid_folder=grid_folder, grid_loader=grid_loader)
 
     def update_grids_dct(self, grid_names):
@@ -144,7 +146,7 @@ class EntitiesFeatureExtractor(object):
         if task=='reordering':
             permuted_files = self.grid_shuffler.generate_shuffled_grids(corpus_dct=corpus_dct, only_grids=grid_names,
                                                                         corpus_name=corpus_name,
-                                                                        saliency=saliency, df=False)
+                                                                        saliency=saliency, df=False, folder_name=self.shuffled_dir)
         else:
             permuted_files = self.grid_shuffler.generate_grids_for_insertion(corpus_dct=corpus_dct,
                                                                              only_grids=grid_names,
@@ -417,6 +419,7 @@ def parse():
     parser = argparse.ArgumentParser(description='Feature vectors generator')
     parser.add_argument('-g', '--generate_feature_vectors', default='Oasis', help='Generate feature vectors')
     parser.add_argument('-m', '--grid_mode', default='egrid_-coref', help='Grid mode')
+    parser.add_argument('-s', '--shuffled_dir', default='shuffled', help='in which folder are the shuffled indices')
     parser.add_argument('-ta', '--task', default='reordering',
                         help='Task type')  # possible values: reordering, insertion
     parser.add_argument('-sa', '--saliency', default=1, help='Saliency')
@@ -429,6 +432,8 @@ def run(args):
     corpus_name, grid_mode, task_type, saliency, number_transitions = \
         args.generate_feature_vectors, args.grid_mode, args.task, \
         args.saliency, args.number_transitions
+
+    shuffled_dir = args.shuffled_dir
 
     if args.generate_feature_vectors:
         print(''.join(y for y in ["-"] * 180))
@@ -475,7 +480,7 @@ def run(args):
 
         corpus_dct = {k: corpus_dct[k] for k in corpus_dct.keys() if k in selected_files_list}
 
-        feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader)
+        feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader, shuffled_dir=shuffled_dir)
 
         print('Corpus name: ', corpus)
         print('Length selected files: ', len(selected_files_list))
@@ -576,7 +581,7 @@ def main():
 
     corpus_dct = {k:corpus_dct[k] for k in corpus_dct.keys() if k in selected_files_list}
 
-    feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader)
+    feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader, shuffled_dir=shuffled_dir)
 
 
     print('Corpus name: ', corpus)

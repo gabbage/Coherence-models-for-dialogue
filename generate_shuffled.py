@@ -389,6 +389,45 @@ class GridShuffler(object):
         #            for i, y in enumerate(current_perm.iloc[x]) if y != '_'])
         #     print('Corresponding original Turn index: ', permuted_indexes_i[permut_i][self.da2turn[grid_i_name][x]])
 
+    def generate_sampling_grids(self, folder_name='shuffled', corpus_name ='Switchboard',
+                                folder_path='data/', corpus_dct=None,
+                                only_grids = None, saliency=1, return_originals=False):
+        # Check shuffled folder exist
+        shuff_path = folder_path + corpus_name + '/' + folder_name+'/'
+        print('Shuff path: ', shuff_path)
+        self.check_match_shuff_original(shuff_path)
+        self.grid_generator.corpus_stats(corpus_dct)
+        
+        permuted_files = {}
+        if return_originals:
+            original_files = {}
+        
+        grid_names = [x for x in self.grids if not re.match(r'.+\_s[0-9][0-9]*', x) and x!='Params']
+        
+        if only_grids is not None:
+            grid_names = [x for x in grid_names if x in only_grids and x!='.DS_Store']
+        
+        print('Len grids to permute: ', len(grid_names))
+        self.update_grids_dct(grid_names)
+        
+        for grid_i_name in tqdm.tqdm(grid_names):
+            grid_i = self.grids.get(grid_i_name)
+
+            # Check saliency
+            if saliency>1:
+                grid_i.drop([col for col in grid_i if len([i for i in grid_i[col] if i != '_']) < saliency], axis=1)
+
+            if return_originals:
+                original_files[grid_i_name] = grid_i
+
+            sample_ix_file = os.path.join(shuff_path, grid_i_name+'.csv')
+            shuffled_indexes_i = pd.read_csv(sample_ix_file, header=None, engine="c", columns=['dialogue', 'segment'])
+
+            for row in shuffled_indexes_i.iterrows():
+                segm_utts, segm_da = corpus_dct.get_segment_by_idx(row['dialogue'], int(row['segment']))
+                #TODO: insert into grid
+
+
     def generate_shuffled_grids(self, folder_name='shuffled', corpus_name ='Switchboard',
                                 folder_path='data/', corpus_dct=None,
                                 only_grids = None, df=False, saliency=1, return_originals=False):
