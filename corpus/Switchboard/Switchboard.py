@@ -66,10 +66,10 @@ class Switchboard(Corpus):
     def create_filelist(self):
         filelist=[]
         for folder in os.listdir(self.corpus_folder):
-            if folder.startswith("sw"):  # dialog folder
-                for filename in os.listdir(self.corpus_folder+"/"+folder):
+            if folder.startswith("sw") and not folder.startswith("swda"):  # dialog folder
+                for filename in os.listdir(os.path.join(self.corpus_folder, folder)):
                     if filename.startswith("sw"):  # dialog file
-                        filelist.append(self.corpus_folder+"/"+folder+"/"+filename)
+                        filelist.append(os.path.join(self.corpus_folder, folder, filename))
         return filelist
 
     def create_csv(self,filelist):
