@@ -102,6 +102,16 @@ class DailyDialog(Corpus):
 
         return csv_corpus
 
+    def get_segment_by_idx(self, dialog_name, segment_idx):
+        # dialogue_segments = self.csv_corpus["{}_{}".format(subset_name, dialogue_idx)]
+        dialogue_segments = self.csv_corpus[dialog_name]
+        #(DA_tag, utt, speaker, segment)
+        segment = list(filter(lambda x: x[3] == segment_idx, dialogue_segments))
+        segm_utt = list(map(lambda x: x[1], segment))
+        segm_da = list(map(lambda x: x[0], segment))
+
+        return segm_utt, segm_da
+
     @staticmethod
     def write_csv(to_write, headers, filename="generated_dataset", outpath=""):
         with open(outpath+filename+'.csv','wb') as outfile:
@@ -119,3 +129,9 @@ class DailyDialog(Corpus):
     @staticmethod
     def da_to_cf(corpus_tuple):
         raise NotImplementedError()
+
+if __name__ == "__main__":
+    corpus = DailyDialog("/home/sebi/code/Coherence-models-for-dialogue/data/DailyDialog")
+    corpus.load_csv()
+
+    print(corpus.get_segment_by_idx("train", 5, 1))

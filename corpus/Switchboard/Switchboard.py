@@ -139,7 +139,15 @@ class Switchboard(Corpus):
 
         return csv_corpus
 
+    def get_segment_by_idx(self, dialog_name, segment_idx):
+        # dialogue_segments = self.csv_corpus["{}_{}".format(subset_name, dialogue_idx)]
+        dialogue_segments = self.csv_corpus[dialog_name]
+        #(DA_tag, utt, speaker, segment)
+        segment = list(filter(lambda x: x[3] == segment_idx, dialogue_segments))
+        segm_utt = list(map(lambda x: x[1], segment))
+        segm_da = list(map(lambda x: x[0], segment))
 
+        return segm_utt, segm_da
 
 
     @staticmethod

@@ -1,5 +1,6 @@
 from collections import defaultdict
 import os, errno
+import argparse
 
 def create_path(filename):
     if not os.path.exists(os.path.dirname(filename)):
@@ -65,21 +66,32 @@ def write_to_dat(docs_to_write, outpath):
                     to_write.write(" " + str(feat_ind) + ":" + str(feat_val))
                 to_write.write('\n')
 
-
+def parse():
+    parser = argparse.ArgumentParser(description='Feature vectors combinator')
+    parser.add_argument('-g', '--generate_feature_vectors', default='Oasis', help='Generate feature vectors')
+    parser.add_argument('-m1', '--grid_mode1', default='egrid_-coref', help='Grid mode')
+    parser.add_argument('-m2', '--grid_mode2', default='egrid_-coref_DAspan_da_noentcol', help='Grid mode')
+    parser.add_argument('-ta', '--task', default='reordering',
+                        help='Task type')  # possible values: reordering, insertion
+    args = parser.parse_args()
+    return args
 
 def main():
-    corpus = 'Oasis'
+    args = parse()
+
+    corpus = args.generate_feature_vectors
     exper_path = 'experiments/'
-    #egrid = 'simple_egrid_-coref'
-    egrid = 'egrid_-coref'
-    noents = 'noents_baseline'
-    task = 'last_turn_ranking'
+    egrid = args.grid_mode1
+    # egrid = 'simple_egrid_-coref'
+    # egrid = 'egrid_-coref'
+    noents = args.grid_mode2
+    task = 'reordering'
     saliency = 1
     trans = '2'
     data_types = ['test', 'train', 'dev']
     # data_types = ['test']
     # joined_name = 'egrid+noents'
-    joined_name = 'simple_egrid+noents'
+    joined_name = "{}+noents".format(args.grid_mode1)
 
     for data_type in data_types:
 

@@ -4,6 +4,7 @@ from builtins import dict
 from load_grids import GridLoader
 # from sklearn.feature_extraction.text import CountVectorizer
 from corpus.Switchboard.Switchboard import Switchboard
+from corpus.DailyDialog.DailyDialog import DailyDialog
 from generate_grid import corpora_paths, get_corpus
 from generate_shuffled import GridShuffler
 from itertools import permutations
@@ -64,7 +65,7 @@ class EntityGridLM(object):
 
 class EntitiesFeatureExtractor(object):
 
-    def __init__(self, grid_loader=None, grid_folder=None):
+    def __init__(self, grid_loader=None, grid_folder=None, shuffled_dir=None):
 
         if grid_loader:
             self.grid_loader = grid_loader
@@ -80,6 +81,7 @@ class EntitiesFeatureExtractor(object):
         if not self.grids:
             self.grids, self.grids_params = self.grid_loader.load_data()
         self.vocabulary = self.get_vocabulary()
+        self.shuffled_dir = shuffled_dir
         self.grid_shuffler = GridShuffler(grid_folder=grid_folder, grid_loader=grid_loader)
 
     def update_grids_dct(self, grid_names):
@@ -106,16 +108,14 @@ class EntitiesFeatureExtractor(object):
         else:
             return probs_grid_i
 
-
-
-
     def extract_transitions_probs(self,
                                   corpus_dct=None,
                                   transition_range=(2, 2),
                                   saliency=1,
                                   logprobs=True,
                                   corpus_name='Switchboard',
-                                  task='reordering'):
+                                  task='reordering',
+                                  options=None):
         ''' Returns a dict with structure
         {grid_name: [orig_probs, perm1_probs, perm2_probs]}
         where orig_probs is a dict '''
@@ -144,7 +144,13 @@ class EntitiesFeatureExtractor(object):
         if task=='reordering':
             permuted_files = self.grid_shuffler.generate_shuffled_grids(corpus_dct=corpus_dct, only_grids=grid_names,
                                                                         corpus_name=corpus_name,
-                                                                        saliency=saliency, df=False)
+                                                                        saliency=saliency, df=False, folder_name=self.shuffled_dir)
+
+        elif task == 'sampling':
+            permuted_files = self.grid_shuffler.generate_sampling_grids(corpus_dct=corpus_dct, only_grids=grid_names,
+                                                                        corpus_name=corpus_name,
+                                                                        saliency=saliency, folder_name=self.shuffled_dir,
+                                                                        options=options)
         else:
             permuted_files = self.grid_shuffler.generate_grids_for_insertion(corpus_dct=corpus_dct,
                                                                              only_grids=grid_names,
@@ -152,7 +158,7 @@ class EntitiesFeatureExtractor(object):
                                                                              saliency=saliency, df=False)
 
         print('Permutation files len: ', len(permuted_files))
-        print('First permut len: ', len(permuted_files[grid_names[0]]))
+        # print('First permut len: ', len(permuted_files[grid_names[0]]))
         # print('First permut example shape: ', permuted_files[grid_names[0]][0].shape)
 
         # Compute probs per grid
@@ -182,6 +188,14 @@ class EntitiesFeatureExtractor(object):
                                                                                            transitions_count, transition_range,
                                                                                            logprobs=logprobs)
                                                        for grid_ij in [grid_i]+permutations_i]
+            elif task=="sampling":
+                grids_transitions_dict[grid_i_name] = []
+                for grid_ij in ([grid_i]+permutations_i):
+                    transitions_count = self.get_total_numb_trans_given(grid_ij, transition_range)
+                    grids_transitions_dict[grid_i_name].append(self.get_transitions_probs_for_grid(trans2id, grid_ij,
+                                                                                           transitions_count, transition_range,
+                                                                                           logprobs=logprobs))
+
             else:
                 original = [self.get_transitions_probs_for_grid(trans2id, grid_i, transitions_count,
                                                                transition_range, logprobs=logprobs)]
@@ -417,6 +431,7 @@ def parse():
     parser = argparse.ArgumentParser(description='Feature vectors generator')
     parser.add_argument('-g', '--generate_feature_vectors', default='Oasis', help='Generate feature vectors')
     parser.add_argument('-m', '--grid_mode', default='egrid_-coref', help='Grid mode')
+    parser.add_argument('-s', '--shuffled_dir', default='shuffled', help='in which folder are the shuffled indices')
     parser.add_argument('-ta', '--task', default='reordering',
                         help='Task type')  # possible values: reordering, insertion
     parser.add_argument('-sa', '--saliency', default=1, help='Saliency')
@@ -429,6 +444,8 @@ def run(args):
     corpus_name, grid_mode, task_type, saliency, number_transitions = \
         args.generate_feature_vectors, args.grid_mode, args.task, \
         args.saliency, args.number_transitions
+
+    shuffled_dir = args.shuffled_dir
 
     if args.generate_feature_vectors:
         print(''.join(y for y in ["-"] * 180))
@@ -467,6 +484,57 @@ def run(args):
         # corpus_dct = {k:corpus_dct[k] for i, k in enumerate(corpus_dct.keys()) if i==0} # Testing
 
 
+        options = {
+            'entities_type' : 'headNPs',
+            'include_prons' : False,
+            'exclude_conversation_prons' : True,
+            'group_by' : 'DAspan', # DAspan, turns (Elsner & Charniak, 2011, "Disentangling Chat")
+            'tag_type' : 'da', # da, synrole_head (Lapata & Barzilay 2005/2008), synrole_X (Elsner & Charniak 2011)
+            'use_coref' : False,
+            'no_entity_column' : True,
+            'end_of_turn_tag' : False}
+
+        default_confs = ['egrid_-coref', 'egrid_+coref', 'extgrid_-coref', 'simple_egrid_-coref',
+                         'egrid_-coref_DAspan', 'egrid_-coref_DAspan_da', 'egrid_-coref_DAspan_da_noentcol']
+
+        if args.grid_mode not in default_confs+['']: raise TypeError('Default configuration inserted is not allowed')
+
+        if args.grid_mode in default_confs:
+            logging.info('Default configuration requested: %s', args.grid_mode)
+            options['group_by'] = 'turns'
+            options['no_entity_column'] = False
+            options['end_of_turn_tag'] = False
+
+            if args.grid_mode in ['egrid_-coref', 'egrid_-coref_DAspan', 'egrid_-coref_DAspan_da',
+                                'egrid_-coref_DAspan_da_noentcol', 'simple_egrid_-coref']:
+                # Head noun divided into, each noun in NP same grammatical role
+                options['entities_type'] = 'allNPs'
+                options['tag_type'] = 'synrole_head'
+                options['use_coref'] = False
+                if args.grid_mode in ['simple_egrid_-coref']:
+                    options['tag_type'] = 'is_present'
+                if args.grid_mode in ['egrid_-coref_DAspan', 'egrid_-coref_DAspan_da','egrid_-coref_DAspan_da_noentcol']:
+                    options['group_by'] = 'DAspan'
+                if args.grid_mode in ['egrid_-coref_DAspan_da','egrid_-coref_DAspan_da_noentcol']:
+                    options['tag_type'] = 'da'
+                if args.grid_mode in ['egrid_-coref_DAspan_da_noentcol']:
+                    options['no_entity_column'] = True
+
+            elif args.grid_mode=='egrid_+coref':
+                # Keep only head nouns, perform coreference on it
+                options['entities_type'] = 'headNPs'
+                options['tag_type'] = 'synrole_head'
+                options['use_coref'] = True
+                options['include_prons'] = True
+
+            # Extended grid default: what's the difference with egrid_-coref? Supposedly "Bush spokeman", where Bush=X
+            elif args.grid_mode=='extgrid_-coref':
+                # Add non-head nouns
+                options['entities_type'] = 'allNPs'
+                options['tag_type'] = 'synrole_X'
+                options['use_coref'] = False
+
+
         if corpus == 'AMI':
             selected_files_list = list(
                 set([grid_name + '.' for data in only_data for grid_name in experiments_split[data].tolist()]))
@@ -475,7 +543,7 @@ def run(args):
 
         corpus_dct = {k: corpus_dct[k] for k in corpus_dct.keys() if k in selected_files_list}
 
-        feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader)
+        feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader, shuffled_dir=shuffled_dir)
 
         print('Corpus name: ', corpus)
         print('Length selected files: ', len(selected_files_list))
@@ -489,7 +557,8 @@ def run(args):
                                                                              saliency=saliency,
                                                                              logprobs=True,
                                                                              corpus_name=corpus,
-                                                                             task=task)
+                                                                             task=task,
+                                                                             options=options)
 
         print('Grid trans dct len: ', len(grids_transitions_dict))
         print('Grid trans key example: ', list(grids_transitions_dict.keys())[0])
@@ -505,9 +574,12 @@ def run(args):
             if len(grids_transitions_test) == 0:
                 print("no data for type", data_type, " found!")
                 continue
-            if task == 'reordering':
+            if task == 'reordering' or task == 'sampling':
                 feature_extractor.featurize_transitions_dct_svmlightformat(grids_transitions_test,
                                                                            out_path + data_filename + '_' + filename)
+            # elif task == 'sampling':
+                # #TODO
+                # pass
             elif task == 'insertion':
                 feature_extractor.featurize_transitions_dct_svmlightformat_insertion(grids_transitions_test,
                                                                                      out_path + data_filename + '_' + filename)
@@ -576,7 +648,7 @@ def main():
 
     corpus_dct = {k:corpus_dct[k] for k in corpus_dct.keys() if k in selected_files_list}
 
-    feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader)
+    feature_extractor = EntitiesFeatureExtractor(grid_folder=grids_path, grid_loader=grid_loader, shuffled_dir=shuffled_dir)
 
 
     print('Corpus name: ', corpus)

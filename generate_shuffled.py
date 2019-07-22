@@ -389,6 +389,92 @@ class GridShuffler(object):
         #            for i, y in enumerate(current_perm.iloc[x]) if y != '_'])
         #     print('Corresponding original Turn index: ', permuted_indexes_i[permut_i][self.da2turn[grid_i_name][x]])
 
+    def generate_sampling_grids(self, folder_name='shuffled', corpus_name ='Switchboard',
+                                folder_path='data/', corpus_dct=None,
+                                only_grids = None, saliency=1, return_originals=False, options=None):
+        # Check shuffled folder exist
+        shuff_path = folder_path + corpus_name + '/' + folder_name+'/'
+        print('Shuff path: ', shuff_path)
+        self.check_match_shuff_original(shuff_path)
+        self.grid_generator.corpus_stats(corpus_dct)
+        
+        permuted_files = {}
+        if return_originals:
+            original_files = {}
+        
+        grid_names = [x for x in self.grids if not re.match(r'.+\_s[0-9][0-9]*', x) and x!='Params']
+        
+        if only_grids is not None:
+            grid_names = [x for x in grid_names if x in only_grids and x!='.DS_Store']
+
+
+        grid_generator = GridGenerator()
+        
+        print('Len grids to permute: ', len(grid_names))
+        self.update_grids_dct(grid_names)
+
+        except_cnt = 0
+        
+        for grid_i_name in tqdm.tqdm(grid_names):
+            grid_i = self.grids.get(grid_i_name)
+
+            # Check saliency
+            if saliency>1:
+                grid_i.drop([col for col in grid_i if len([i for i in grid_i[col] if i != '_']) < saliency], axis=1)
+
+            if return_originals:
+                original_files[grid_i_name] = grid_i
+
+            sample_ix_file = os.path.join(shuff_path, grid_i_name+'.csv')
+            shuffled_indexes_i = pd.read_csv(sample_ix_file, header=None, engine="c")
+
+            permuted_files[grid_i_name] = []
+            for row in shuffled_indexes_i.iterrows():
+                sample_dialogue_name = row[1][0]
+                try:
+                    sample_dialogue = corpus_dct[sample_dialogue_name]
+                    sample_utt_ix = row[1][1]
+                except KeyError:
+                    #choose one random dialogue
+                    sample_dialogue_name = random.choice(list(corpus_dct.keys()))
+                    sample_dialogue = corpus_dct[sample_dialogue_name]
+                    sample_utt_ix = random.randint(0, len(sample_dialogue)-1)
+                    except_cnt += 1
+
+                insert_ix = row[1][2]
+
+                new_dialogue = copy.deepcopy(corpus_dct[grid_i_name])
+                new_dialogue_before = list(filter(lambda x: x[3] < insert_ix, new_dialogue))
+                new_dialogue_after = list(filter(lambda x: x[3] > insert_ix, new_dialogue))
+                sample = list(filter(lambda x: x[3] == sample_utt_ix, sample_dialogue))
+                sample = [(da, utt, spk, insert_ix) for (da, utt, spk, oldsgmt) in sample]
+                assert sample != [], "Somehow tried to insert empty sample utterance!"
+                new_dialogue = new_dialogue_before + sample + new_dialogue_after
+                # print(list(map(lambda x: x[1], new_dialogue)))
+
+                new_grid = grid_generator.process_dialogue(new_dialogue,
+                                          entities_type=options['entities_type'],
+                                          include_prons=options['include_prons'],
+                                          exclude_conversation_prons= options['exclude_conversation_prons'],
+                                          group_by=options['group_by'],
+                                          tag_type=options['tag_type'],
+                                          use_coref=options['use_coref'],
+                                          no_entity_column=options['no_entity_column'],
+                                          end_of_turn_tag=options['end_of_turn_tag'])
+                if new_grid != None:
+                    new_grid = grid_generator.sort_grid_entity_appearance(new_grid)
+                    new_grid = grid_generator.turn_grids_into_to_write(new_grid)
+
+                    permuted_files[grid_i_name].append(pd.DataFrame(new_grid[1:], columns=new_grid[0]))
+
+        if return_originals:
+            return permuted_files, original_files
+        else:
+            return permuted_files
+
+                # segm_utts, segm_da = corpus_dct.get_segment_by_idx(row['dialogue'], int(row['segment']))
+                #TODO: generate new grid from this info
+
     def generate_shuffled_grids(self, folder_name='shuffled', corpus_name ='Switchboard',
                                 folder_path='data/', corpus_dct=None,
                                 only_grids = None, df=False, saliency=1, return_originals=False):
