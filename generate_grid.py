@@ -366,6 +366,96 @@ class GridGenerator(object):
         previous_mentions = len(all_mentions)
 
 
+    def process_dialogue(self, dialogue, entities_type="allNPs",
+                       include_prons=False, exclude_conversation_prons=True,
+                       tag_type="synrole", group_by="DAspan", use_coref = False,
+                       end_of_turn_tag=False, no_entity_column=False):
+
+        if self.coref is not None:
+            self.coref.clean_history()
+
+        # previous_mentions = 0
+        dialogue_entities = {} # List of turns (entity: list of turns)
+        if no_entity_column is True:
+            dialogue_entities['no_entity'] = []
+
+        # Select text span
+        if group_by=="turns":
+            dialogue = self.group_turns(dialogue)
+
+        # Minimum 5 dialogue turns
+        if len(self.group_turns(dialogue)) < 5:
+            return None
+
+        # For each text span (utterance) extract list of entities
+        for tag, utt, speaker, turn_id in dialogue:
+
+            previous_turns_len = len(list(dialogue_entities.values())[0]) if dialogue_entities.keys() else 0
+
+            # Preprocess utt removing double spaces
+            utt = re.sub(' +', ' ', utt)
+
+            # start = timer()
+            if use_coref:
+                self.coref.continuous_coref(utterances=utt, utterances_speakers_id=speaker)
+
+            # t_continuous_coref = timer()
+            # print('Time only continuous_coref: ', t_continuous_coref - start)
+
+            # Extract entities
+            current_entities = self.extract_entities_from_utt(utt,
+                                                              entities_type=entities_type,
+                                                              include_prons=include_prons,
+                                                              use_coref=use_coref,
+                                                              exclude_conversation_prons=exclude_conversation_prons)
+
+            # Assign tag to the entities: [(token list, tag)]
+            tagged_entities = self.assign_tag_to_entities(current_entities, tag, tag_type=tag_type)
+
+            # Remove disfluencies
+            tagged_entities = self.remove_disfluencies(tagged_entities)
+
+            # Transform spacy tokens into text
+            tagged_entities = self.transform_tokens_groups_in_text(tagged_entities)
+
+            # Map repetitions of the same entity in current utt
+            tagged_entities = self.group_same_utt_entities(tagged_entities, tag_type)
+
+            # Check previous entity dict if there is already an entity, else add new entity column
+            for entity_key, entity_tag in tagged_entities:
+
+                if entity_key in dialogue_entities:
+                    dialogue_entities[entity_key].append(entity_tag) # Update entity with new tag
+                else:
+                    dialogue_entities[entity_key] = ['_']*previous_turns_len+[entity_tag]
+
+
+            # Update no entity column if there are no entities
+            if not tagged_entities and no_entity_column and tag_type=='da':
+                dialogue_entities['no_entity'].append(tag)  # Update entity with new tag
+            #  Initialize dialogue_entities if there are no tagged entities creating tmp entity later to be dropped
+            elif not tagged_entities and not dialogue_entities:
+                dialogue_entities['<tmp_none>']=['_']
+
+
+            # Update all entities not in this turn
+            dialogue_entities = {ent: (tags+['_'] if len(tags)<(previous_turns_len+1) else tags)
+                                 for ent, tags in iteritems(dialogue_entities)}
+
+            if end_of_turn_tag is True:
+                dialogue_entities = {ent: (tags + ['<eot>'])
+                                     for ent, tags in iteritems(dialogue_entities)}
+            # t_end = timer()
+            # print('Time from continuous_coref to end of dialogue: ', t_end - t_continuous_coref)
+            # print('Grids lengths: ', set([len(en) for en in dialogue_entities.values()]))
+
+            # print('--Grid -Whole grid: ', dialogue_entities)
+
+        # Remove tmp initializing entity
+        dialogue_entities.pop('<tmp_none>', None)
+
+        return dialogue_entities
+
 
     def process_corpus(self, corpus, entities_type="allNPs",
                        include_prons=False, exclude_conversation_prons=True,
@@ -404,91 +494,13 @@ class GridGenerator(object):
             # # test_utt = u'Hello!'
             # dialogue[0] = (u'test', test_utt, u'A', -2)
             # dialogue[1] = (u'test', test_utt2, u'B', -1)
+            dialogue_entities = self.process_dialogue(dialogue, entities_type=entities_type, 
+                       include_prons=include_prons, exclude_conversation_prons=exclude_conversation_prons, 
+                       tag_type=tag_type, group_by=group_by, use_coref=use_coref, 
+                       end_of_turn_tag=end_of_turn_tag, no_entity_column=no_entity_column)
 
-            if self.coref is not None:
-                self.coref.clean_history()
-
-            # previous_mentions = 0
-            dialogue_entities = {} # List of turns (entity: list of turns)
-            if no_entity_column is True:
-                dialogue_entities['no_entity'] = []
-
-            # Select text span
-            if group_by=="turns":
-                dialogue = self.group_turns(dialogue)
-
-            # Minimum 5 dialogue turns
-            if len(self.group_turns(dialogue)) < 5:
-                continue
-
-            # For each text span (utterance) extract list of entities
-            for tag, utt, speaker, turn_id in dialogue:
-
-                previous_turns_len = len(list(dialogue_entities.values())[0]) if dialogue_entities.keys() else 0
-
-                # Preprocess utt removing double spaces
-                utt = re.sub(' +', ' ', utt)
-
-                # start = timer()
-                if use_coref:
-                    self.coref.continuous_coref(utterances=utt, utterances_speakers_id=speaker)
-
-                # t_continuous_coref = timer()
-                # print('Time only continuous_coref: ', t_continuous_coref - start)
-
-                # Extract entities
-                current_entities = self.extract_entities_from_utt(utt,
-                                                                  entities_type=entities_type,
-                                                                  include_prons=include_prons,
-                                                                  use_coref=use_coref,
-                                                                  exclude_conversation_prons=exclude_conversation_prons)
-
-                # Assign tag to the entities: [(token list, tag)]
-                tagged_entities = self.assign_tag_to_entities(current_entities, tag, tag_type=tag_type)
-
-                # Remove disfluencies
-                tagged_entities = self.remove_disfluencies(tagged_entities)
-
-                # Transform spacy tokens into text
-                tagged_entities = self.transform_tokens_groups_in_text(tagged_entities)
-
-                # Map repetitions of the same entity in current utt
-                tagged_entities = self.group_same_utt_entities(tagged_entities, tag_type)
-
-                # Check previous entity dict if there is already an entity, else add new entity column
-                for entity_key, entity_tag in tagged_entities:
-
-                    if entity_key in dialogue_entities:
-                        dialogue_entities[entity_key].append(entity_tag) # Update entity with new tag
-                    else:
-                        dialogue_entities[entity_key] = ['_']*previous_turns_len+[entity_tag]
-
-
-                # Update no entity column if there are no entities
-                if not tagged_entities and no_entity_column and tag_type=='da':
-                    dialogue_entities['no_entity'].append(tag)  # Update entity with new tag
-                #  Initialize dialogue_entities if there are no tagged entities creating tmp entity later to be dropped
-                elif not tagged_entities and not dialogue_entities:
-                    dialogue_entities['<tmp_none>']=['_']
-
-
-                # Update all entities not in this turn
-                dialogue_entities = {ent: (tags+['_'] if len(tags)<(previous_turns_len+1) else tags)
-                                     for ent, tags in iteritems(dialogue_entities)}
-
-                if end_of_turn_tag is True:
-                    dialogue_entities = {ent: (tags + ['<eot>'])
-                                         for ent, tags in iteritems(dialogue_entities)}
-                # t_end = timer()
-                # print('Time from continuous_coref to end of dialogue: ', t_end - t_continuous_coref)
-                # print('Grids lengths: ', set([len(en) for en in dialogue_entities.values()]))
-
-                # print('--Grid -Whole grid: ', dialogue_entities)
-
-            # Remove tmp initializing entity
-            dialogue_entities.pop('<tmp_none>', None)
-
-            grids[dialogue_id] = dialogue_entities
+            if dialogue_entities is not None:
+                grids[dialogue_id] = dialogue_entities
 
             # break
 
