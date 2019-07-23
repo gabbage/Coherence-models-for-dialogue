@@ -526,6 +526,9 @@ class GridGenerator(object):
     def turn_grids_into_to_write(self, grids_dct):
         # print('Formatted grids values 0: ', grids_dct.values()[0])
         # print('grids values:  ', grids_dct.values())
+        if len(grids_dct.values()) == 0:
+            return []
+
         max_i = max(map(lambda x: len(list(x)), grids_dct.values()))
         formatted = [[] for i in range(max_i)]
         for val in grids_dct.values():
