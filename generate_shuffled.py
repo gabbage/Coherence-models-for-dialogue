@@ -466,6 +466,10 @@ class GridShuffler(object):
                     new_grid = grid_generator.turn_grids_into_to_write(new_grid)
 
                     permuted_files[grid_i_name].append(pd.DataFrame(new_grid[1:], columns=new_grid[0]))
+                else:
+                    del permuted_files[grid_i_name]
+                    break
+
 
         if return_originals:
             return permuted_files, original_files
