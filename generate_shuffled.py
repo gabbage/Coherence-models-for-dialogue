@@ -438,7 +438,7 @@ class GridShuffler(object):
                     #choose one random dialogue
                     sample_dialogue_name = random.choice(list(corpus_dct.keys()))
                     sample_dialogue = corpus_dct[sample_dialogue_name]
-                    sample_utt_ix = random.randint(0, len(sample_dialogue)-1)
+                    sample_utt_ix = random.randint(0, len(sample_dialogue)-1) #TODO: might be error prone for Switchboard
                     except_cnt += 1
 
                 insert_ix = row[1][2]
@@ -461,7 +461,7 @@ class GridShuffler(object):
                                           use_coref=options['use_coref'],
                                           no_entity_column=options['no_entity_column'],
                                           end_of_turn_tag=options['end_of_turn_tag'])
-                if new_grid != None:
+                if new_grid != None and len(new_grid) > 0:
                     new_grid = grid_generator.sort_grid_entity_appearance(new_grid)
                     new_grid = grid_generator.turn_grids_into_to_write(new_grid)
 
