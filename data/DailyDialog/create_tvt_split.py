@@ -10,7 +10,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 if __name__ == "__main__":
-    grids_folder = os.path.join("egrid_-coref/")
+    grids_folder = os.path.join("egrid_-coref")
     dataset = [x.rstrip('.csv') for x in os.listdir(grids_folder) if x not in ['Params.csv', '.DS_Store.csv']]
     training = [x for x in dataset if x.startswith("train")]
     validation = [x for x in dataset if x.startswith("validation")]
