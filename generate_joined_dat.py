@@ -130,7 +130,7 @@ def main():
     # egrid = 'simple_egrid_-coref'
     # egrid = 'egrid_-coref'
     noents = args.grid_mode2
-    task = 'reordering'
+    task = args.task
     saliency = 1
     trans = '2'
     data_types = ['test', 'train', 'dev']
