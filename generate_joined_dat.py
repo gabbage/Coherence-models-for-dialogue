@@ -20,6 +20,51 @@ def read_test_file(path):
             else:
                 query_id = line.strip().split()[2]
 
+def read_test_file_2_dict(path):
+    query_dict = dict()
+    with open(path, 'r') as infile:
+        current_query_id = None
+        for line in infile:
+            if line[0] is not '#':
+                query_dict[current_query_id].append(line.strip().split())
+            else:
+                current_query_id = line.strip().split()[2]
+                query_dict[current_query_id] = []
+    return query_dict
+
+def combine_files_dict(egrid_dict, noents_dict, trans):
+    trans2feat = {'2': 16}
+    max_trans_feat = trans2feat.get(trans)
+    docs_to_write = defaultdict(list)
+    missing = 0
+
+    for doc_id in egrid_dict.keys():
+        if doc_id not in noents_dict:
+            missing += 1
+            continue
+
+        egrid_i_feat_list = egrid_dict[doc_id]
+        noent_i_feat_list = noents_dict[doc_id]
+        if len(egrid_i_feat_list) != len(noent_i_feat_list):
+            missing += 1
+            continue
+
+        for i in range(len(egrid_i_feat_list)):
+            egrid_i_feat = egrid_i_feat_list[i]
+            noent_i_feat = noent_i_feat_list[i]
+            label = egrid_i_feat[0]
+            qid = egrid_i_feat[1]
+
+            egrid_features = [(f_i.split(':')[0], f_i.split(':')[1]) for f_i in egrid_i_feat[2:]]
+            mod_noents_features = [(int(f_i.split(':')[0])+max_trans_feat, f_i.split(':')[1]) for f_i in noent_i_feat[2:]]
+
+            joined_i = (label, qid, egrid_features+mod_noents_features)
+            docs_to_write[doc_id].append(joined_i)
+        # print('Joined: ', joined_i)
+
+    print("Missing Combinations: {}".format(missing))
+    return docs_to_write
+
 def combine_files(egrid_file, noents_file, trans):
     trans2feat = {'2': 16}
     max_trans_feat = trans2feat.get(trans)
@@ -104,11 +149,11 @@ def main():
 
         print(path_egrid)
         print(path_noents)
-        egrid_file = list(read_test_file(path_egrid))
-        noents_file = list(read_test_file(path_noents))
+        egrid_file = read_test_file_2_dict(path_egrid)
+        noents_file = read_test_file_2_dict(path_noents)
         print(len(egrid_file))
         print(len(noents_file))
-        to_write = combine_files(egrid_file, noents_file, trans)
+        to_write = combine_files_dict(egrid_file, noents_file, trans)
         write_to_dat(to_write, joined_path)
 
 
