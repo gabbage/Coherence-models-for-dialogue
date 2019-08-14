@@ -436,14 +436,15 @@ def parse():
                         help='Task type')  # possible values: reordering, insertion
     parser.add_argument('-sa', '--saliency', default=1, help='Saliency')
     parser.add_argument('-nt', '--number_transitions', default=(2, 2), help='Transition range')
+    parser.add_argument('-ot', '--original_task', default="up", help="the task defined by mesgar & buecker")
     args = parser.parse_args()
     return args
 
 
 def run(args):
-    corpus_name, grid_mode, task_type, saliency, number_transitions = \
+    corpus_name, grid_mode, task_type, saliency, number_transitions, orig_task = \
         args.generate_feature_vectors, args.grid_mode, args.task, \
-        args.saliency, args.number_transitions
+        args.saliency, args.number_transitions, args.original_task
 
     shuffled_dir = args.shuffled_dir
 
@@ -464,7 +465,7 @@ def run(args):
         experiments_path = 'experiments/'
         grids_data_path = 'data/'
 
-        out_path = create_path(experiments_path + corpus + '/' + task + '/' + model_type + '/')
+        out_path = create_path(experiments_path + corpus + '/' + task + '/' + model_type + '/' + orig_task + '/')
         grids_path = grids_data_path + corpus + '/' + model_type + '/'
         data_filename = grids_path.split('/')[1] + '_sal' + str(saliency) + '_range' + str(transition_range[0]) + "_" + str(
             transition_range[1])
