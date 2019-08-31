@@ -397,13 +397,13 @@ class GridShuffler(object):
         print('Shuff path: ', shuff_path)
         self.check_match_shuff_original(shuff_path)
         self.grid_generator.corpus_stats(corpus_dct)
-        
+
         permuted_files = {}
         if return_originals:
             original_files = {}
-        
+
         grid_names = [x for x in self.grids if not re.match(r'.+\_s[0-9][0-9]*', x) and x!='Params']
-        
+
         if only_grids is not None:
             grid_names = [x for x in grid_names if x in only_grids and x!='.DS_Store']
 
@@ -438,18 +438,21 @@ class GridShuffler(object):
                     #choose one random dialogue
                     sample_dialogue_name = random.choice(list(corpus_dct.keys()))
                     sample_dialogue = corpus_dct[sample_dialogue_name]
+                    # print("sample dialogue: ", sample_dialogue)
                     sample_utt_ix = random.randint(0, len(sample_dialogue)-1) #TODO: might be error prone for Switchboard
                     except_cnt += 1
 
                 insert_ix = row[1][2]
 
                 new_dialogue = copy.deepcopy(corpus_dct[grid_i_name])
-                new_dialogue_before = list(filter(lambda x: x[3] < insert_ix, new_dialogue))
-                new_dialogue_after = list(filter(lambda x: x[3] > insert_ix, new_dialogue))
-                sample = list(filter(lambda x: x[3] == sample_utt_ix, sample_dialogue))
-                sample = [(da, utt, spk, insert_ix) for (da, utt, spk, oldsgmt) in sample]
-                assert sample != [], "Somehow tried to insert empty sample utterance!"
-                new_dialogue = new_dialogue_before + sample + new_dialogue_after
+                # new_dialogue_before = list(filter(lambda x: x[3] < insert_ix, new_dialogue))
+                # new_dialogue_after = list(filter(lambda x: x[3] > insert_ix, new_dialogue))
+                # sample = list(filter(lambda x: x[3] == sample_utt_ix, sample_dialogue))
+                # sample = [(da, utt, spk, insert_ix) for (da, utt, spk, oldsgmt) in sample]
+                # assert sample != [], "Somehow tried to insert empty sample utterance!"
+                # new_dialogue = new_dialogue_before + sample + new_dialogue_after
+                new_dialogue = new_dialogue[:insert_ix] + sample_dialogue[insert_ix] + ([] if insert_ix==len(new_dialogue)-1 else new_dialogue[insert_ix+1:])
+    
                 # print(list(map(lambda x: x[1], new_dialogue)))
 
                 new_grid = grid_generator.process_dialogue(new_dialogue,
